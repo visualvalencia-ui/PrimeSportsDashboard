@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db, getTargetContext } from './firebase';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { Activity, Dumbbell, Navigation, Plus, History } from 'lucide-react';
+import { Activity, Dumbbell, Navigation, Plus, History, Trash2 } from 'lucide-react';
 import { useRunTracker } from './hooks/useRunTracker.js';
-import { subscribeRuns } from './services/runsService.js';
+import { subscribeRuns, deleteRun } from './services/runsService.js';
 import { formatDuration } from './utils/gpsMath.js';
 import RunTrackerView from './components/RunTrackerView.jsx';
 import RunDetailModal from './components/RunDetailModal.jsx';
@@ -141,6 +141,27 @@ export default function App() {
     setValue1('');
     setValue2('');
     setActiveTab('dashboard');
+  };
+
+  const handleDeleteGpsRun = async (runId, e = null) => {
+    if (e) e.stopPropagation();
+    if (!runId) return;
+    try {
+      await deleteRun(runId, targetCtx);
+      if (selectedRun?.id === runId) {
+        setSelectedRun(null);
+      }
+    } catch (_) {}
+  };
+
+  const handleDeleteManualLog = async (logId) => {
+    if (!logId) return;
+    const nextLogs = (data.logs || []).filter((l) => l.id !== logId);
+    await setDoc(
+      doc(db, targetCtx.collectionName, targetCtx.athleteId),
+      { logs: nextLogs },
+      { merge: true }
+    );
   };
 
   const handleUpdateExercise = async (exerciseId, patch) => {
@@ -425,16 +446,41 @@ export default function App() {
                     })
                   : run.dateLocal || '';
                 return (
-                  <button
+                  <div
                     key={run.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     className="history-run-row"
                     data-testid={`history-run-item-${run.id}`}
                     onClick={() => setSelectedRun(run)}
                   >
                     <div className="history-run-top">
                       <span className="history-run-title">{run.title || 'Carrera GPS'}</span>
-                      <span className="history-run-date">{dateLabel}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="history-run-date">{dateLabel}</span>
+                        <button
+                          type="button"
+                          aria-label="Eliminar carrera"
+                          data-testid={`delete-run-btn-${run.id}`}
+                          onClick={(e) => handleDeleteGpsRun(run.id, e)}
+                          style={{
+                            background: 'rgba(255, 51, 51, 0.14)',
+                            border: '1px solid rgba(255, 51, 51, 0.45)',
+                            color: '#ff4d4d',
+                            borderRadius: '8px',
+                            padding: '4px 8px',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Trash2 size={13} />
+                          Borrar
+                        </button>
+                      </div>
                     </div>
                     <div className="history-run-metrics">
                       <span className="history-run-dist">
@@ -443,7 +489,7 @@ export default function App() {
                       <span>{formatDuration(run.activeDurationSec || 0)}</span>
                       <span>{run.avgPaceFormatted || '--:-- /km'}</span>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -456,11 +502,41 @@ export default function App() {
                   key={log.id}
                   className="history-log-row"
                   data-testid="history-log-item"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                  }}
                 >
-                  <span style={{ color: 'var(--primary)', textTransform: 'capitalize' }}>
-                    {`${log.type}: `}
-                  </span>
-                  {`${log.v1} ${log.type === 'cardio' ? 'km' : 'kg'}`}
+                  <div>
+                    <span style={{ color: 'var(--primary)', textTransform: 'capitalize' }}>
+                      {`${log.type}: `}
+                    </span>
+                    {`${log.v1} ${log.type === 'cardio' ? 'km' : 'kg'}`}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Eliminar registro"
+                    data-testid={`delete-log-btn-${log.id}`}
+                    onClick={() => handleDeleteManualLog(log.id)}
+                    style={{
+                      background: 'rgba(255, 51, 51, 0.12)',
+                      border: '1px solid rgba(255, 51, 51, 0.35)',
+                      color: '#ff4d4d',
+                      borderRadius: '8px',
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Trash2 size={12} />
+                    Borrar
+                  </button>
                 </div>
               ))}
             </div>
@@ -472,7 +548,11 @@ export default function App() {
         </div>
       )}
 
-      <RunDetailModal run={selectedRun} onClose={() => setSelectedRun(null)} />
+      <RunDetailModal
+        run={selectedRun}
+        onClose={() => setSelectedRun(null)}
+        onDelete={(runId) => handleDeleteGpsRun(runId)}
+      />
 
       <div className="nav-bar" data-testid="nav-bar">
         <button

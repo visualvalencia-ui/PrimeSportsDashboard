@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { formatDuration } from '../utils/gpsMath.js';
-import { saveRun } from '../services/runsService.js';
+import { saveRun, deleteRun } from '../services/runsService.js';
 import RunMap from './RunMap.jsx';
 
 function getGpsBadgeText(gpsStatus) {
@@ -121,6 +121,16 @@ export default function RunTrackerView({ tracker, targetCtx }) {
     tracker.resetToIdle();
   };
 
+  const handleDiscardSavedRun = async () => {
+    const runId = tracker.lastCompletedRun?.id;
+    if (runId) {
+      try {
+        await deleteRun(runId, targetCtx);
+      } catch (_) {}
+    }
+    handleSummaryDone();
+  };
+
   const alertMessage = tracker.gpsError || saveError;
   const run = tracker.lastCompletedRun;
   const gaitInfo = getStravaGaitInfo(tracker);
@@ -214,14 +224,33 @@ export default function RunTrackerView({ tracker, targetCtx }) {
             </div>
           )}
 
-          <button
-            type="button"
-            className="btn run-summary-done-btn"
-            data-testid="btn-summary-done"
-            onClick={handleSummaryDone}
-          >
-            Nueva Carrera
-          </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px' }}>
+            <button
+              type="button"
+              className="btn run-summary-done-btn"
+              data-testid="btn-summary-done"
+              onClick={handleSummaryDone}
+            >
+              Nueva Carrera
+            </button>
+            <button
+              type="button"
+              data-testid="btn-summary-discard"
+              onClick={handleDiscardSavedRun}
+              style={{
+                background: 'rgba(255, 51, 51, 0.16)',
+                border: '1px solid rgba(255, 51, 51, 0.5)',
+                color: '#ff4d4d',
+                borderRadius: '10px',
+                padding: '0 14px',
+                fontSize: '13px',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              🗑️ Borrar
+            </button>
+          </div>
         </div>
       ) : (
         <>

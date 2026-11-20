@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { formatDuration } from '../utils/gpsMath.js';
 import RunMap from './RunMap.jsx';
 
-export default function RunDetailModal({ run, onClose }) {
+export default function RunDetailModal({ run, onClose, onDelete }) {
   useEffect(() => {
     if (!run) return undefined;
     const handleKeyDown = (e) => {
@@ -93,6 +93,27 @@ export default function RunDetailModal({ run, onClose }) {
             <div className="splits-empty">Sin parciales de 1 km completos</div>
           )}
         </div>
+
+        {onDelete && (
+          <button
+            type="button"
+            data-testid="modal-delete-run-btn"
+            onClick={() => onDelete(run.id)}
+            style={{
+              background: 'rgba(255, 51, 51, 0.16)',
+              border: '1px solid rgba(255, 51, 51, 0.5)',
+              color: '#ff4d4d',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              fontSize: '13px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              width: '100%',
+            }}
+          >
+            🗑️ Eliminar esta carrera
+          </button>
+        )}
       </div>
     </div>
   );
