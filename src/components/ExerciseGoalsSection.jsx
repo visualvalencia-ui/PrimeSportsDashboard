@@ -69,6 +69,17 @@ export const DEFAULT_EXERCISES = [
     weightPhoto: null,
   },
   {
+    id: 'biceps_cable',
+    name: 'Bíceps en Polea Baja',
+    category: 'Tronco Superior',
+    currentKg: 25,
+    targetKg: 35,
+    primeKg: 45,
+    reps: '3x12',
+    machinePhoto: './machines/biceps_polea.jpg',
+    weightPhoto: null,
+  },
+  {
     id: 'farmers_walk',
     name: 'Paseo del Granjero (30 lbs / 13.6 kg)',
     category: 'Funcional & Agarre',

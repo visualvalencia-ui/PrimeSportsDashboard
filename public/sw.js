@@ -1,4 +1,4 @@
-const CACHE_NAME = 'prime-tracker-v16';
+const CACHE_NAME = 'prime-tracker-v17';
 const ASSETS = [
   './',
   './index.html',
