@@ -355,32 +355,34 @@ export default function App() {
             </div>
           </div>
 
-          <div className="card" data-testid="card-strength">
-            <div className="card-title">
-              <Dumbbell size={20} /> Fuerza Relativa
+          {targetCtx.isTestMode && (
+            <div className="card" data-testid="card-strength">
+              <div className="card-title">
+                <Dumbbell size={20} /> Fuerza Relativa
+              </div>
+              <div
+                data-testid="strength-phase"
+                style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}
+              >
+                {pullPhase}
+              </div>
+              <div className="stat-row">
+                <span data-testid="strength-actual">{`Actual: ${bestKg} kg`}</span>
+                <span data-testid="strength-target" style={{ color: 'var(--primary)' }}>
+                  {`Meta: ${pullTarget} kg`}
+                </span>
+              </div>
+              <div className="progress-container">
+                <div className="progress-bar" style={{ width: `${pullPercent}%` }}></div>
+              </div>
+              <div
+                data-testid="strength-percent"
+                style={{ textAlign: 'right', fontSize: 12, marginTop: 4, color: 'var(--primary)' }}
+              >
+                {`${pullPercent}%`}
+              </div>
             </div>
-            <div
-              data-testid="strength-phase"
-              style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}
-            >
-              {pullPhase}
-            </div>
-            <div className="stat-row">
-              <span data-testid="strength-actual">{`Actual: ${bestKg} kg`}</span>
-              <span data-testid="strength-target" style={{ color: 'var(--primary)' }}>
-                {`Meta: ${pullTarget} kg`}
-              </span>
-            </div>
-            <div className="progress-container">
-              <div className="progress-bar" style={{ width: `${pullPercent}%` }}></div>
-            </div>
-            <div
-              data-testid="strength-percent"
-              style={{ textAlign: 'right', fontSize: 12, marginTop: 4, color: 'var(--primary)' }}
-            >
-              {`${pullPercent}%`}
-            </div>
-          </div>
+          )}
 
           <ExerciseGoalsSection
             exercises={data.exercises}
@@ -514,15 +516,17 @@ export default function App() {
           <Navigation size={18} />
           <span>Correr</span>
         </button>
-        <button
-          type="button"
-          className={`nav-item ${activeTab === 'add' ? 'active' : ''}`}
-          data-testid="nav-add"
-          onClick={() => setActiveTab('add')}
-        >
-          <Plus size={18} />
-          <span>Registrar</span>
-        </button>
+        {targetCtx.isTestMode && (
+          <button
+            type="button"
+            className={`nav-item ${activeTab === 'add' ? 'active' : ''}`}
+            data-testid="nav-add"
+            onClick={() => setActiveTab('add')}
+          >
+            <Plus size={18} />
+            <span>Registrar</span>
+          </button>
+        )}
         <button
           type="button"
           className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
