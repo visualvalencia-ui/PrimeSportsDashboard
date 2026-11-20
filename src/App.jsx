@@ -20,6 +20,79 @@ export default function App() {
   const [type, setType] = useState('cardio');
   const [value1, setValue1] = useState('');
   const [value2, setValue2] = useState('');
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [shareFlash, setShareFlash] = useState('');
+
+  useEffect(() => {
+    window.__PRIME_RUN_ACTIVE__ =
+      tracker.status === 'recording' || tracker.status === 'paused';
+  }, [tracker.status]);
+
+  useEffect(() => {
+    const onBeforeInstall = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+  }, []);
+
+  const handleInstallOrShare = async () => {
+    if (installPrompt) {
+      try {
+        installPrompt.prompt();
+        await installPrompt.userChoice;
+        setInstallPrompt(null);
+        return;
+      } catch (_) {}
+    }
+    const cleanUrl = window.location.origin + window.location.pathname;
+    const msg = `🏃‍♂️ PRIME · Tracker Deportivo GPS: ${cleanUrl}`;
+    const flash = (txt) => {
+      setShareFlash(txt);
+      setTimeout(() => setShareFlash(''), 2400);
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(cleanUrl);
+      }
+    } catch (_) {}
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'PRIME · Tracker Deportivo GPS',
+          text: 'Mi app personal de running y entrenamiento 🔥',
+          url: cleanUrl,
+        });
+        flash('✅ Guardado');
+        return;
+      } catch (_) {}
+    }
+    try {
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+      flash('✅ Link copiado');
+    } catch (_) {
+      flash('✅ Link copiado');
+    }
+  };
+
+  const handleForceUpdate = async () => {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+    } catch (_) {}
+    try {
+      sessionStorage.clear();
+    } catch (_) {}
+    window.location.href =
+      window.location.origin + window.location.pathname + '?v=' + Date.now();
+  };
 
   useEffect(() => {
     const athleteRef = doc(db, targetCtx.collectionName, targetCtx.athleteId);
@@ -105,12 +178,64 @@ export default function App() {
   return (
     <div className="container">
       <div className="header">
-        <h1 data-testid="app-header">Prime Tracker</h1>
-        {targetCtx.isTestMode && (
-          <span className="test-mode-badge" data-testid="test-mode-badge">
-            TEST MODE
-          </span>
-        )}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+          }}
+        >
+          <h1 data-testid="app-header" style={{ margin: 0 }}>
+            Prime Tracker
+          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {targetCtx.isTestMode && (
+              <span className="test-mode-badge" data-testid="test-mode-badge">
+                TEST MODE
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleInstallOrShare}
+              data-testid="pwa-share-install-btn"
+              title="Instalar App o enviar a WhatsApp"
+              style={{
+                background: 'rgba(57, 255, 20, 0.14)',
+                border: '1px solid rgba(57, 255, 20, 0.45)',
+                color: '#39ff14',
+                borderRadius: '10px',
+                padding: '6px 10px',
+                fontSize: '12px',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              {shareFlash || (installPrompt ? '📲 Instalar' : '📲 App')}
+            </button>
+            <button
+              type="button"
+              onClick={handleForceUpdate}
+              data-testid="pwa-force-update-btn"
+              title="Recargar última versión limpia"
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.16)',
+                color: '#fff',
+                borderRadius: '10px',
+                width: '32px',
+                height: '32px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              🔄
+            </button>
+          </div>
+        </div>
       </div>
 
       {activeTab === 'dashboard' && (
