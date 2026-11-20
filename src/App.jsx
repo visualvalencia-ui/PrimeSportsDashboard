@@ -446,41 +446,16 @@ export default function App() {
                     })
                   : run.dateLocal || '';
                 return (
-                  <div
+                  <button
                     key={run.id}
-                    role="button"
-                    tabIndex={0}
+                    type="button"
                     className="history-run-row"
                     data-testid={`history-run-item-${run.id}`}
                     onClick={() => setSelectedRun(run)}
                   >
                     <div className="history-run-top">
                       <span className="history-run-title">{run.title || 'Carrera GPS'}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="history-run-date">{dateLabel}</span>
-                        <button
-                          type="button"
-                          aria-label="Eliminar carrera"
-                          data-testid={`delete-run-btn-${run.id}`}
-                          onClick={(e) => handleDeleteGpsRun(run.id, e)}
-                          style={{
-                            background: 'rgba(255, 51, 51, 0.14)',
-                            border: '1px solid rgba(255, 51, 51, 0.45)',
-                            color: '#ff4d4d',
-                            borderRadius: '8px',
-                            padding: '4px 8px',
-                            fontSize: '11px',
-                            fontWeight: 800,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          <Trash2 size={13} />
-                          Borrar
-                        </button>
-                      </div>
+                      <span className="history-run-date">{dateLabel}</span>
                     </div>
                     <div className="history-run-metrics">
                       <span className="history-run-dist">
@@ -489,7 +464,7 @@ export default function App() {
                       <span>{formatDuration(run.activeDurationSec || 0)}</span>
                       <span>{run.avgPaceFormatted || '--:-- /km'}</span>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -502,41 +477,11 @@ export default function App() {
                   key={log.id}
                   className="history-log-row"
                   data-testid="history-log-item"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px',
-                  }}
                 >
-                  <div>
-                    <span style={{ color: 'var(--primary)', textTransform: 'capitalize' }}>
-                      {`${log.type}: `}
-                    </span>
-                    {`${log.v1} ${log.type === 'cardio' ? 'km' : 'kg'}`}
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Eliminar registro"
-                    data-testid={`delete-log-btn-${log.id}`}
-                    onClick={() => handleDeleteManualLog(log.id)}
-                    style={{
-                      background: 'rgba(255, 51, 51, 0.12)',
-                      border: '1px solid rgba(255, 51, 51, 0.35)',
-                      color: '#ff4d4d',
-                      borderRadius: '8px',
-                      padding: '4px 8px',
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <Trash2 size={12} />
-                    Borrar
-                  </button>
+                  <span style={{ color: 'var(--primary)', textTransform: 'capitalize' }}>
+                    {`${log.type}: `}
+                  </span>
+                  {`${log.v1} ${log.type === 'cardio' ? 'km' : 'kg'}`}
                 </div>
               ))}
             </div>
@@ -548,11 +493,7 @@ export default function App() {
         </div>
       )}
 
-      <RunDetailModal
-        run={selectedRun}
-        onClose={() => setSelectedRun(null)}
-        onDelete={(runId) => handleDeleteGpsRun(runId)}
-      />
+      <RunDetailModal run={selectedRun} onClose={() => setSelectedRun(null)} />
 
       <div className="nav-bar" data-testid="nav-bar">
         <button
