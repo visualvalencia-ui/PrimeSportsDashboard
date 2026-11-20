@@ -188,7 +188,9 @@ export default function App() {
     ...gpsRuns.map((r) => Number(r.distanceKm) || 0)
   );
   const exerciseKgs = Array.isArray(data.exercises)
-    ? data.exercises.map((e) => Number(e.currentKg) || 0)
+    ? data.exercises
+        .filter((e) => (e.unit || 'kg') === 'kg')
+        .map((e) => Number(e.currentKg) || 0)
     : [];
   const bestKg = Math.max(
     0,

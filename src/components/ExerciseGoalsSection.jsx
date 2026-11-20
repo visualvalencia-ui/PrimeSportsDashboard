@@ -4,30 +4,21 @@ import { Camera, Dumbbell, Check, ChevronDown, ChevronUp } from 'lucide-react';
 export const DEFAULT_EXERCISES = [
   {
     id: 'leg_press',
-    name: 'Prensa Horizontal Sentada (90°)',
+    name: 'Prensa / Extensión de Cuádriceps (90°)',
     category: 'Pierna',
+    unit: 'kg',
     currentKg: 45,
     targetKg: 70,
     primeKg: 100,
     reps: '3x15',
     machinePhoto: './machines/leg_press.jpg',
-    weightPhoto: null,
-  },
-  {
-    id: 'leg_extension',
-    name: 'Extensión de Cuádriceps (Arriba)',
-    category: 'Pierna',
-    currentKg: 45,
-    targetKg: 65,
-    primeKg: 85,
-    reps: '3x15',
-    machinePhoto: './machines/leg_extension.jpg',
-    weightPhoto: null,
+    weightPhoto: './machines/leg_extension.jpg',
   },
   {
     id: 'leg_curl',
-    name: 'Curl de Isquios Sentado (Abajo)',
+    name: 'Curl de Isquios Sentado (Hacia Abajo)',
     category: 'Pierna',
+    unit: 'kg',
     currentKg: 45,
     targetKg: 60,
     primeKg: 80,
@@ -39,6 +30,7 @@ export const DEFAULT_EXERCISES = [
     id: 'chest_press',
     name: 'Prensa de Pecho Sentada (Palmas)',
     category: 'Tronco Superior',
+    unit: 'kg',
     currentKg: 45,
     targetKg: 60,
     primeKg: 80,
@@ -48,19 +40,21 @@ export const DEFAULT_EXERCISES = [
   },
   {
     id: 'lat_pulldown',
-    name: 'Jalón al Pecho en Polea (Agarre V)',
+    name: 'Jalón al Pecho (Barra Larga)',
     category: 'Tronco Superior',
+    unit: 'kg',
     currentKg: 45,
     targetKg: 60,
     primeKg: 75,
     reps: '3x12',
-    machinePhoto: './machines/lat_pulldown.jpg',
+    machinePhoto: './machines/lat_pulldown_wide.jpg',
     weightPhoto: null,
   },
   {
     id: 'triceps_pushdown',
     name: 'Tríceps en Polea Alta',
     category: 'Tronco Superior',
+    unit: 'kg',
     currentKg: 25,
     targetKg: 35,
     primeKg: 45,
@@ -72,6 +66,7 @@ export const DEFAULT_EXERCISES = [
     id: 'biceps_cable',
     name: 'Bíceps en Polea Baja',
     category: 'Tronco Superior',
+    unit: 'kg',
     currentKg: 25,
     targetKg: 35,
     primeKg: 45,
@@ -81,12 +76,31 @@ export const DEFAULT_EXERCISES = [
   },
   {
     id: 'farmers_walk',
-    name: 'Paseo del Granjero (30 lbs / 13.6 kg)',
+    name: 'Paseo del Granjero (16m Ida y Vuelta)',
     category: 'Funcional & Agarre',
-    currentKg: 13.6,
-    targetKg: 20,
-    primeKg: 30,
-    reps: '5x20m',
+    unit: 'lbs',
+    currentKg: 30,
+    targetKg: 45,
+    primeKg: 65,
+    repsCount: 7,
+    targetRepsCount: 10,
+    repsUnitLabel: 'Vueltas (16m ida/vuelta)',
+    reps: '7 vueltas × 16m',
+    machinePhoto: './machines/farmers_walk.jpg',
+    weightPhoto: null,
+  },
+  {
+    id: 'dead_hang',
+    name: 'Dead Hang (Colgado en Barra)',
+    category: 'Funcional & Agarre',
+    unit: 'seg',
+    currentKg: 60,
+    targetKg: 90,
+    primeKg: 120,
+    repsCount: 3,
+    targetRepsCount: 4,
+    repsUnitLabel: 'Series (Veces)',
+    reps: '1 min (60s) × 3 veces',
     machinePhoto: './machines/dead_hang.jpg',
     weightPhoto: null,
   },
@@ -145,6 +159,7 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
     editValues[ex.id] || {
       currentKg: ex.currentKg,
       targetKg: ex.targetKg,
+      repsCount: ex.repsCount ?? '',
     };
 
   const handleFieldChange = (ex, field, val) => {
@@ -179,13 +194,28 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
     const curNum = parseFloat(current.currentKg);
     const tarNum = parseFloat(current.targetKg);
     if (!Number.isFinite(curNum) || curNum <= 0) return;
+
+    const patch = {
+      currentKg: curNum,
+      targetKg: Number.isFinite(tarNum) && tarNum > 0 ? tarNum : ex.targetKg,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (ex.repsUnitLabel && current.repsCount !== '') {
+      const rNum = parseInt(current.repsCount, 10);
+      if (Number.isFinite(rNum) && rNum > 0) {
+        patch.repsCount = rNum;
+        if (ex.id === 'farmers_walk') {
+          patch.reps = `${rNum} vueltas × 16m`;
+        } else if (ex.id === 'dead_hang') {
+          patch.reps = `${curNum}s × ${rNum} veces`;
+        }
+      }
+    }
+
     setSavingId(ex.id);
     try {
-      await onUpdateExercise(ex.id, {
-        currentKg: curNum,
-        targetKg: Number.isFinite(tarNum) && tarNum > 0 ? tarNum : ex.targetKg,
-        updatedAt: new Date().toISOString(),
-      });
+      await onUpdateExercise(ex.id, patch);
     } finally {
       setSavingId(null);
     }
@@ -195,12 +225,12 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
     <div className="card" data-testid="card-exercise-goals">
       <div className="card-title" style={{ justifyContent: 'space-between' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-          <Dumbbell size={20} /> Rutina: Máquinas & Pesos (45 kg ➔ Meta)
+          <Dumbbell size={20} /> Rutina: Máquinas, Granjero & Hang
         </span>
       </div>
       <div style={{ fontSize: '12px', color: '#999', marginBottom: '12px' }}>
-        Toca cada máquina para ver o subir tus <b>2 fotos</b> (<b>1. Máquina</b> y{' '}
-        <b>2. Peso en torre</b>) y ajustar tu meta individual.
+        Toca cada ejercicio para ver o subir tus <b>2 fotos</b> (<b>1. Máquina</b> y{' '}
+        <b>2. Peso / Registro</b>) y actualizar tu marca.
       </div>
 
       {/* Filtro por grupo muscular */}
@@ -242,12 +272,26 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
       {/* Lista de ejercicios con barra y 2 fotos */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {visibleList.map((ex) => {
+          const unit = ex.unit || 'kg';
           const pct = Math.min(
             100,
             Math.max(0, ((Number(ex.currentKg) || 0) / (Number(ex.targetKg) || 1)) * 100)
           ).toFixed(0);
           const isOpen = expandedId === ex.id;
           const edit = getEdit(ex);
+
+          const primaryLabel =
+            unit === 'seg'
+              ? 'Tiempo (seg)'
+              : unit === 'lbs'
+                ? 'Peso (lbs)'
+                : 'Peso Actual (kg)';
+          const targetLabel =
+            unit === 'seg'
+              ? 'Meta (seg)'
+              : unit === 'lbs'
+                ? 'Meta (lbs)'
+                : 'Meta Fase (kg)';
 
           return (
             <div
@@ -318,12 +362,19 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                   style={{ fontSize: '12px', marginBottom: '4px' }}
                 >
                   <span>
-                    Actual: <b style={{ color: '#fff' }}>{ex.currentKg} kg</b>
+                    Actual:{' '}
+                    <b style={{ color: '#fff' }}>
+                      {ex.currentKg} {unit}
+                      {ex.repsCount ? ` · ${ex.repsCount} ${ex.id === 'farmers_walk' ? 'vueltas' : 'veces'}` : ''}
+                    </b>
                   </span>
                   <span style={{ color: 'var(--primary)' }}>
-                    Meta Fase: <b>{ex.targetKg} kg</b>{' '}
+                    Meta:{' '}
+                    <b>
+                      {ex.targetKg} {unit}
+                    </b>{' '}
                     <span style={{ color: '#777', fontSize: '11px' }}>
-                      (Prime: {ex.primeKg} kg)
+                      (Prime: {ex.primeKg} {unit})
                     </span>
                   </span>
                 </div>
@@ -343,7 +394,7 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                     borderTop: '1px solid rgba(255,255,255,0.08)',
                   }}
                 >
-                  {/* 2 Slots de Fotos: 1. Máquina y 2. Peso */}
+                  {/* 2 Slots de Fotos: 1. Máquina/Ejercicio y 2. Peso/Registro */}
                   <div
                     style={{
                       display: 'grid',
@@ -352,7 +403,7 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                       marginBottom: '12px',
                     }}
                   >
-                    {/* FOTO 1: LA MÁQUINA */}
+                    {/* FOTO 1: LA MÁQUINA / EJERCICIO */}
                     <div
                       style={{
                         background: '#0d0d10',
@@ -371,7 +422,7 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                           color: '#00f0ff',
                         }}
                       >
-                        1. Foto Máquina
+                        1. Foto Ejercicio / Máquina
                       </div>
                       {ex.machinePhoto ? (
                         <img
@@ -401,7 +452,7 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                             padding: '6px',
                           }}
                         >
-                          Sin foto de máquina
+                          Sin foto
                         </div>
                       )}
                       <label
@@ -435,7 +486,7 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                       </label>
                     </div>
 
-                    {/* FOTO 2: EL PESO EN LA TORRE */}
+                    {/* FOTO 2: EL PESO EN LA TORRE / MANCUERNA */}
                     <div
                       style={{
                         background: '#0d0d10',
@@ -454,7 +505,7 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                           color: 'var(--primary)',
                         }}
                       >
-                        2. Foto Peso ({ex.currentKg} kg)
+                        2. Foto Peso ({ex.currentKg} {unit})
                       </div>
                       {ex.weightPhoto ? (
                         <img
@@ -487,9 +538,13 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                           }}
                         >
                           <b style={{ color: '#fff', fontSize: '15px' }}>
-                            {ex.currentKg} kg
+                            {ex.currentKg} {unit}
                           </b>
-                          <span>Sube foto de los discos / pin</span>
+                          <span>
+                            {ex.repsCount
+                              ? `${ex.repsCount} ${ex.id === 'farmers_walk' ? 'vueltas (16m)' : 'series'}`
+                              : 'Sube foto de discos / pin'}
+                          </span>
                         </div>
                       )}
                       <label
@@ -524,11 +579,13 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                     </div>
                   </div>
 
-                  {/* Controles rápidos de Peso Actual y Meta */}
+                  {/* Controles rápidos de Peso/Tiempo, Vueltas/Series y Meta */}
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) auto',
+                      gridTemplateColumns: ex.repsUnitLabel
+                        ? 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto'
+                        : 'minmax(0, 1fr) minmax(0, 1fr) auto',
                       gap: '8px',
                       alignItems: 'end',
                     }}
@@ -542,7 +599,7 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                           marginBottom: '3px',
                         }}
                       >
-                        Peso Actual (kg)
+                        {primaryLabel}
                       </label>
                       <input
                         type="number"
@@ -561,6 +618,41 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                         }}
                       />
                     </div>
+
+                    {ex.repsUnitLabel && (
+                      <div style={{ minWidth: 0 }}>
+                        <label
+                          style={{
+                            fontSize: '10.5px',
+                            color: '#00f0ff',
+                            display: 'block',
+                            marginBottom: '3px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {ex.id === 'farmers_walk' ? 'Vueltas (16m)' : 'Series (Veces)'}
+                        </label>
+                        <input
+                          type="number"
+                          step="1"
+                          value={edit.repsCount}
+                          onChange={(e) =>
+                            handleFieldChange(ex, 'repsCount', e.target.value)
+                          }
+                          style={{
+                            width: '100%',
+                            minWidth: 0,
+                            boxSizing: 'border-box',
+                            padding: '8px 10px',
+                            fontSize: '13px',
+                            fontWeight: 800,
+                          }}
+                        />
+                      </div>
+                    )}
+
                     <div style={{ minWidth: 0 }}>
                       <label
                         style={{
@@ -570,7 +662,7 @@ export default function ExerciseGoalsSection({ exercises, onUpdateExercise }) {
                           marginBottom: '3px',
                         }}
                       >
-                        Meta Fase (kg)
+                        {targetLabel}
                       </label>
                       <input
                         type="number"
