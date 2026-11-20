@@ -1,0 +1,13 @@
+{
+  "name": "dashboard-prime-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "smoke": "node --test --test-concurrency=1 --test-timeout=60000 ./smoke.test.mjs",
+    "test": "node --test --test-concurrency=1 --test-timeout=120000 ./specs/*.test.mjs",
+    "test:all": "node --test --test-concurrency=1 --test-timeout=120000 ./smoke.test.mjs ./specs/*.test.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.65.1"
+  }
+}
