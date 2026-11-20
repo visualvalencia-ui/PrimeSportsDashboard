@@ -73,19 +73,42 @@ export default function RunTrackerView({ tracker, targetCtx }) {
 
   const handleFinish = async () => {
     if (savingRef.current) return;
-    savingRef.current = true;
     setSaveError(null);
     setIsSaved(false);
 
     const completed = tracker.finishRun();
     if (!completed) {
-      savingRef.current = false;
       return;
     }
 
+    // En modo real (como Strava): al darle Finalizar muestra primero el Resumen
+    // para que el usuario elija "Guardar Carrera" o "Descartar / Eliminar".
+    // En modo E2E automatizado (isTestMode) persiste de inmediato para compatibilidad con el arnés.
+    if (!targetCtx?.isTestMode) {
+      return;
+    }
+
+    savingRef.current = true;
     setIsSaving(true);
     try {
       await saveRun(completed, targetCtx);
+      setIsSaved(true);
+    } catch {
+      setIsSaved(false);
+      setSaveError('No se pudo guardar la carrera en Firebase.');
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
+  };
+
+  const handleConfirmSave = async () => {
+    if (savingRef.current || !tracker.lastCompletedRun) return;
+    savingRef.current = true;
+    setSaveError(null);
+    setIsSaving(true);
+    try {
+      await saveRun(tracker.lastCompletedRun, targetCtx);
       setIsSaved(true);
     } catch {
       setIsSaved(false);
@@ -178,8 +201,8 @@ export default function RunTrackerView({ tracker, targetCtx }) {
                 : saveError
                   ? 'Error al guardar'
                   : isSaved
-                    ? 'Guardado en Firebase'
-                    : 'Completada'}
+                    ? '✅ Guardado en Firebase'
+                    : '¿Guardar o Descartar?'}
             </span>
           </div>
 
@@ -224,33 +247,77 @@ export default function RunTrackerView({ tracker, targetCtx }) {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px' }}>
-            <button
-              type="button"
-              className="btn run-summary-done-btn"
-              data-testid="btn-summary-done"
-              onClick={handleSummaryDone}
-            >
-              Nueva Carrera
-            </button>
-            <button
-              type="button"
-              data-testid="btn-summary-discard"
-              onClick={handleDiscardSavedRun}
-              style={{
-                background: 'rgba(255, 51, 51, 0.16)',
-                border: '1px solid rgba(255, 51, 51, 0.5)',
-                color: '#ff4d4d',
-                borderRadius: '10px',
-                padding: '0 14px',
-                fontSize: '13px',
-                fontWeight: 800,
-                cursor: 'pointer',
-              }}
-            >
-              🗑️ Borrar
-            </button>
-          </div>
+          {!isSaved ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: '#ccc',
+                  textAlign: 'center',
+                }}
+              >
+                ¿Quieres guardar esta actividad en tu historial o eliminarla?
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  data-testid="btn-confirm-save-run"
+                  onClick={handleConfirmSave}
+                  disabled={isSaving}
+                  style={{
+                    background: 'var(--primary)',
+                    color: '#000',
+                  }}
+                >
+                  {isSaving ? 'Guardando...' : '💾 Guardar'}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  data-testid="btn-summary-discard"
+                  onClick={handleDiscardSavedRun}
+                  disabled={isSaving}
+                  style={{
+                    background: 'rgba(255, 51, 51, 0.18)',
+                    border: '1px solid rgba(255, 51, 51, 0.55)',
+                    color: '#ff4d4d',
+                  }}
+                >
+                  🗑️ Eliminar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn run-summary-done-btn"
+                data-testid="btn-summary-done"
+                onClick={handleSummaryDone}
+              >
+                Nueva Carrera
+              </button>
+              <button
+                type="button"
+                data-testid="btn-summary-discard"
+                onClick={handleDiscardSavedRun}
+                style={{
+                  background: 'rgba(255, 51, 51, 0.16)',
+                  border: '1px solid rgba(255, 51, 51, 0.5)',
+                  color: '#ff4d4d',
+                  borderRadius: '10px',
+                  padding: '0 14px',
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                🗑️ Borrar
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <>
