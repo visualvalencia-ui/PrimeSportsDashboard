@@ -13,7 +13,11 @@ import ExerciseGoalsSection, {
 
 export default function App() {
   const targetCtx = useMemo(() => getTargetContext(), []);
-  const tracker = useRunTracker();
+  const tracker = useRunTracker(
+    targetCtx.isTestMode
+      ? {}
+      : { filterOptions: { maxAccuracyMeters: 120, minJitterMeters: 1.2 } }
+  );
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [data, setData] = useState({ logs: [] });

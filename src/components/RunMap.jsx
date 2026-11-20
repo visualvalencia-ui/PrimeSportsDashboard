@@ -4,7 +4,10 @@ import 'leaflet/dist/leaflet.css';
 import { normalizeSegments } from '../utils/gpsMath.js';
 
 const DEFAULT_CENTER = [4.6016, -74.2227]; // Ciudad Verde, Soacha
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const TILE_STREETS =
+  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const TILE_SATELLITE =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
 function createDivIcon(innerClass, size) {
   const half = Math.round(size / 2);
@@ -25,9 +28,12 @@ export default function RunMap({
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const tileLayerRef = useRef(null);
   const layerGroupRef = useRef(null);
   const svgRendererRef = useRef(null);
   const [followUser, setFollowUser] = useState(true);
+  const [mapStyle, setMapStyle] = useState('streets');
+  const [idleGpsPos, setIdleGpsPos] = useState(null);
 
   // Re-enable auto-follow whenever entering live or idle tracking mode
   useEffect(() => {
@@ -35,6 +41,34 @@ export default function RunMap({
       setFollowUser(true);
     }
   }, [mode]);
+
+  // Auto-locate user on idle when opening the "Correr" tab so map shows their real street anywhere
+  useEffect(() => {
+    if (
+      mode !== 'idle' ||
+      currentPosition ||
+      typeof navigator === 'undefined' ||
+      !navigator.geolocation ||
+      new URLSearchParams(window.location.search).get('testCollection')
+    ) {
+      return undefined;
+    }
+    let cancelled = false;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (cancelled || !pos?.coords) return;
+        const { latitude, longitude, accuracy } = pos.coords;
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          setIdleGpsPos({ lat: latitude, lng: longitude, acc: accuracy });
+        }
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 15000 }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, currentPosition]);
 
   // Initialize Leaflet map once (React 18 StrictMode-safe cleanup)
   useEffect(() => {
@@ -44,14 +78,14 @@ export default function RunMap({
     const svgRenderer = L.svg({ padding: 0.5 });
     const map = L.map(el, {
       center: DEFAULT_CENTER,
-      zoom: 15,
+      zoom: 16,
       zoomControl: false,
       attributionControl: true,
       preferCanvas: false,
       renderer: svgRenderer,
     });
 
-    L.tileLayer(TILE_URL, {
+    const tileLayer = L.tileLayer(TILE_STREETS, {
       subdomains: 'abcd',
       maxZoom: 19,
       attribution: '&copy; OSM &copy; CARTO',
@@ -60,6 +94,7 @@ export default function RunMap({
     const layerGroup = L.layerGroup().addTo(map);
 
     mapRef.current = map;
+    tileLayerRef.current = tileLayer;
     layerGroupRef.current = layerGroup;
     svgRendererRef.current = svgRenderer;
 
@@ -83,9 +118,15 @@ export default function RunMap({
         mapRef.current.invalidateSize({ animate: false });
       }
     });
+    const initTimer = setTimeout(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize({ animate: false });
+      }
+    }, 220);
 
     return () => {
       cancelAnimationFrame(initRaf);
+      clearTimeout(initTimer);
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
@@ -93,10 +134,28 @@ export default function RunMap({
       map.off();
       map.remove();
       mapRef.current = null;
+      tileLayerRef.current = null;
       layerGroupRef.current = null;
       svgRendererRef.current = null;
     };
   }, []);
+
+  // Switch between High-Contrast Streets and Satellite
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+    const url = mapStyle === 'satellite' ? TILE_SATELLITE : TILE_STREETS;
+    const nextLayer = L.tileLayer(
+      url,
+      mapStyle === 'satellite'
+        ? { maxZoom: 19, attribution: '&copy; Esri' }
+        : { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OSM &copy; CARTO' }
+    ).addTo(map);
+    tileLayerRef.current = nextLayer;
+  }, [mapStyle]);
 
   // Sync polylines, markers, and camera framing
   useEffect(() => {
@@ -119,8 +178,8 @@ export default function RunMap({
           seg.map((pt) => [pt.lat, pt.lng]),
           {
             color: '#39ff14',
-            weight: 4,
-            opacity: 0.95,
+            weight: 5,
+            opacity: 0.96,
             lineCap: 'round',
             lineJoin: 'round',
             fill: false,
@@ -130,7 +189,6 @@ export default function RunMap({
       }
     }
 
-    // Inline divIcon markers (zero external <img> marker URLs)
     if (allPoints.length >= 1) {
       const startPt = allPoints[0];
       L.marker([startPt.lat, startPt.lng], {
@@ -147,12 +205,17 @@ export default function RunMap({
       }).addTo(layerGroup);
     }
 
+    const effectivePos =
+      currentPosition &&
+      Number.isFinite(currentPosition.lat) &&
+      Number.isFinite(currentPosition.lng)
+        ? currentPosition
+        : idleGpsPos;
+
     if (mode === 'live' || mode === 'idle') {
       const livePt =
-        currentPosition &&
-        Number.isFinite(currentPosition.lat) &&
-        Number.isFinite(currentPosition.lng)
-          ? currentPosition
+        effectivePos
+          ? effectivePos
           : allPoints.length > 0
             ? allPoints[allPoints.length - 1]
             : null;
@@ -197,10 +260,8 @@ export default function RunMap({
       timerId = setTimeout(fitRoute, 120);
     } else if (followUser) {
       const target =
-        currentPosition &&
-        Number.isFinite(currentPosition.lat) &&
-        Number.isFinite(currentPosition.lng)
-          ? [currentPosition.lat, currentPosition.lng]
+        effectivePos
+          ? [effectivePos.lat, effectivePos.lng]
           : allPoints.length > 0
             ? [allPoints[allPoints.length - 1].lat, allPoints[allPoints.length - 1].lng]
             : DEFAULT_CENTER;
@@ -213,10 +274,29 @@ export default function RunMap({
       if (rafId !== null) cancelAnimationFrame(rafId);
       if (timerId !== null) clearTimeout(timerId);
     };
-  }, [segments, currentPosition, mode, followUser]);
+  }, [segments, currentPosition, idleGpsPos, mode, followUser]);
 
   const handleRecenter = () => {
     setFollowUser(true);
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.geolocation &&
+      !new URLSearchParams(window.location.search).get('testCollection')
+    ) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (pos?.coords) {
+            setIdleGpsPos({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              acc: pos.coords.accuracy,
+            });
+          }
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 6000 }
+      );
+    }
   };
 
   const showRecenter = (mode === 'live' || mode === 'idle') && !followUser;
@@ -227,7 +307,33 @@ export default function RunMap({
       data-testid="run-map"
       style={{ height, minHeight: '240px', isolation: 'isolate', zIndex: 1 }}
     >
-      <div ref={containerRef} className="run-map-canvas" />
+      <div
+        ref={containerRef}
+        className="run-map-canvas"
+        style={{ width: '100%', height: height || '240px', minHeight: '240px' }}
+      />
+      <button
+        type="button"
+        onClick={() =>
+          setMapStyle((prev) => (prev === 'streets' ? 'satellite' : 'streets'))
+        }
+        style={{
+          position: 'absolute',
+          top: '10px',
+          left: '10px',
+          zIndex: 500,
+          background: 'rgba(13, 13, 16, 0.88)',
+          border: '1px solid rgba(255,255,255,0.22)',
+          color: '#fff',
+          borderRadius: '8px',
+          padding: '5px 10px',
+          fontSize: '11px',
+          fontWeight: 800,
+          cursor: 'pointer',
+        }}
+      >
+        {mapStyle === 'streets' ? '🛰️ Satélite' : '🗺️ Calles'}
+      </button>
       {showRecenter && (
         <button
           type="button"

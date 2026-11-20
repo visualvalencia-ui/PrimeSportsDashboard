@@ -29,6 +29,42 @@ function getRunStatusText(status) {
   }
 }
 
+function getStravaGaitInfo(tracker) {
+  if (tracker.status === 'paused') {
+    return { label: '⏸️ En Pausa (Tiempo congelado)', speedKmh: 0, color: '#ffaa00' };
+  }
+  if (tracker.status !== 'recording') {
+    return {
+      label: '🌍 GPS Multizona (Caminata / Trote / Sprint)',
+      speedKmh: 0,
+      color: '#00f0ff',
+    };
+  }
+  // Compute current speed km/h from currentPaceFormatted or average speed
+  let speedKmh = 0;
+  const paceStr =
+    tracker.currentPaceFormatted && tracker.currentPaceFormatted !== '--:-- /km'
+      ? tracker.currentPaceFormatted
+      : tracker.avgPaceFormatted;
+  if (paceStr && paceStr !== '--:-- /km') {
+    const m = paceStr.match(/(\d+):(\d+)/);
+    if (m) {
+      const paceMin = Number(m[1]) + Number(m[2]) / 60;
+      if (paceMin > 0) speedKmh = 60 / paceMin;
+    }
+  }
+  if (speedKmh < 1.2) {
+    return { label: '🧍 Detenido / Esperando paso', speedKmh: 0, color: '#aaa' };
+  }
+  if (speedKmh < 5.8) {
+    return { label: '🚶 Caminando (Calentamiento)', speedKmh, color: '#00f0ff' };
+  }
+  if (speedKmh <= 10.8) {
+    return { label: '🏃 Trotando · Zona 2 Ideal', speedKmh, color: '#39ff14' };
+  }
+  return { label: '⚡ Running Intenso / Sprint', speedKmh, color: '#ffaa00' };
+}
+
 export default function RunTrackerView({ tracker, targetCtx }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -87,6 +123,7 @@ export default function RunTrackerView({ tracker, targetCtx }) {
 
   const alertMessage = tracker.gpsError || saveError;
   const run = tracker.lastCompletedRun;
+  const gaitInfo = getStravaGaitInfo(tracker);
 
   return (
     <div className="run-tracker-view" data-testid="run-tracker-view">
@@ -196,6 +233,28 @@ export default function RunTrackerView({ tracker, targetCtx }) {
           />
 
           <div className="card run-cockpit-card">
+            <div
+              data-testid="strava-gait-banner"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '8px',
+                background: '#121216',
+                border: `1px solid ${gaitInfo.color}`,
+                borderRadius: '10px',
+                padding: '7px 10px',
+                marginBottom: '10px',
+                fontSize: '12px',
+                fontWeight: 800,
+                color: gaitInfo.color,
+              }}
+            >
+              <span>{gaitInfo.label}</span>
+              <span style={{ color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                {`${gaitInfo.speedKmh.toFixed(1)} km/h`}
+              </span>
+            </div>
             <div className="hero-metric">
               <span className="metric-label">Distancia</span>
               <div className="hero-metric-value" data-testid="metric-distance">
