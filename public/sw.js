@@ -1,4 +1,4 @@
-const CACHE_NAME = 'prime-tracker-v19';
+const CACHE_NAME = 'prime-tracker-v20';
 const ASSETS = [
   './',
   './index.html',
@@ -30,7 +30,7 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => Promise.all(
       keys.map((k) => {
-        if (k !== CACHE_NAME && k !== 'carto-dark-tiles') return caches.delete(k);
+        if (k !== CACHE_NAME && k !== 'osm-map-tiles') return caches.delete(k);
       })
     ))
   );
@@ -46,10 +46,10 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Cache map tiles for fast outdoor rendering
-  if (url.hostname.includes('basemaps.cartocdn.com')) {
+  // Cache OpenStreetMap & Esri Satellite tiles for fast outdoor rendering
+  if (url.hostname.includes('tile.openstreetmap.org') || url.hostname.includes('arcgisonline.com')) {
     e.respondWith(
-      caches.open('carto-dark-tiles').then(async (cache) => {
+      caches.open('osm-map-tiles').then(async (cache) => {
         const cached = await cache.match(e.request);
         if (cached) return cached;
         try {

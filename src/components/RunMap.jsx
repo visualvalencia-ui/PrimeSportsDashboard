@@ -4,8 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { normalizeSegments } from '../utils/gpsMath.js';
 
 const DEFAULT_CENTER = [4.6016, -74.2227]; // Ciudad Verde, Soacha
-const TILE_STREETS =
-  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const TILE_STREETS = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_SATELLITE =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
@@ -86,9 +85,8 @@ export default function RunMap({
     });
 
     const tileLayer = L.tileLayer(TILE_STREETS, {
-      subdomains: 'abcd',
       maxZoom: 19,
-      attribution: '&copy; OSM &copy; CARTO',
+      attribution: '&copy; OpenStreetMap',
     }).addTo(map);
 
     const layerGroup = L.layerGroup().addTo(map);
@@ -152,7 +150,7 @@ export default function RunMap({
       url,
       mapStyle === 'satellite'
         ? { maxZoom: 19, attribution: '&copy; Esri' }
-        : { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OSM &copy; CARTO' }
+        : { maxZoom: 19, attribution: '&copy; OpenStreetMap' }
     ).addTo(map);
     tileLayerRef.current = nextLayer;
   }, [mapStyle]);
