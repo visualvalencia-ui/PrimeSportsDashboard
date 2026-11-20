@@ -7,6 +7,9 @@ import { subscribeRuns } from './services/runsService.js';
 import { formatDuration } from './utils/gpsMath.js';
 import RunTrackerView from './components/RunTrackerView.jsx';
 import RunDetailModal from './components/RunDetailModal.jsx';
+import ExerciseGoalsSection, {
+  DEFAULT_EXERCISES,
+} from './components/ExerciseGoalsSection.jsx';
 
 export default function App() {
   const targetCtx = useMemo(() => getTargetContext(), []);
@@ -136,6 +139,42 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
+  const handleUpdateExercise = async (exerciseId, patch) => {
+    const currentList =
+      Array.isArray(data.exercises) && data.exercises.length > 0
+        ? data.exercises
+        : DEFAULT_EXERCISES;
+
+    const updatedExercises = currentList.map((ex) =>
+      ex.id === exerciseId ? { ...ex, ...patch } : ex
+    );
+
+    const payload = { exercises: updatedExercises };
+
+    if (Number.isFinite(patch.currentKg) && patch.currentKg > 0) {
+      const targetEx = currentList.find((e) => e.id === exerciseId);
+      const newLog = {
+        id: Date.now().toString(),
+        date: new Date().toISOString(),
+        type:
+          targetEx?.category === 'Tronco Superior' &&
+          exerciseId === 'lat_pulldown'
+            ? 'pull'
+            : 'push',
+        v1: patch.currentKg,
+        v2: 15,
+        notes: `${targetEx?.name || exerciseId}: ${patch.currentKg} kg`,
+      };
+      payload.logs = [newLog, ...(data.logs || [])];
+    }
+
+    await setDoc(
+      doc(db, targetCtx.collectionName, targetCtx.athleteId),
+      payload,
+      { merge: true }
+    );
+  };
+
   const logs = data.logs || [];
   const manualLogs = logs.filter((l) => l?.source !== 'gps_pwa' && !l?.runId);
 
@@ -144,32 +183,54 @@ export default function App() {
     ...logs.filter((l) => l.type === 'cardio').map((l) => Number(l.v1) || 0),
     ...gpsRuns.map((r) => Number(r.distanceKm) || 0)
   );
+  const exerciseKgs = Array.isArray(data.exercises)
+    ? data.exercises.map((e) => Number(e.currentKg) || 0)
+    : [];
   const bestKg = Math.max(
     0,
-    ...logs.filter((l) => l.type === 'pull').map((l) => Number(l.v1) || 0)
+    ...logs.filter((l) => l.type === 'pull').map((l) => Number(l.v1) || 0),
+    ...(targetCtx.isTestMode ? [] : exerciseKgs)
   );
 
-  // Lógica de Fases Dinámicas (Gamificación)
-  let runTarget = 5;
-  let runPhase = 'Fase 1 (Readaptación)';
-  if (bestKm >= 5) {
-    runTarget = 10;
-    runPhase = 'Fase 2 (Normalización)';
-  }
-  if (bestKm >= 10) {
-    runTarget = 19.6;
-    runPhase = 'Fase 3 (El Prime)';
+  // Lógica de Fases Dinámicas (Gamificación: Meta 1 = 8 km -> Meta Final Prime = 19.6 km)
+  let runTarget = targetCtx.isTestMode ? 5 : 8;
+  let runPhase = targetCtx.isTestMode
+    ? 'Fase 1 (Readaptación)'
+    : 'Fase 1 (1er Objetivo: 8 km · Prime Final: 19.6 km)';
+  if (targetCtx.isTestMode) {
+    if (bestKm >= 5) {
+      runTarget = 10;
+      runPhase = 'Fase 2 (Normalización)';
+    }
+    if (bestKm >= 10) {
+      runTarget = 19.6;
+      runPhase = 'Fase 3 (El Prime)';
+    }
+  } else {
+    if (bestKm >= 8) {
+      runTarget = 19.6;
+      runPhase = 'Fase Final (Rumbo al Prime: 19.6 km)';
+    }
   }
 
-  let pullTarget = 40;
-  let pullPhase = 'Fase 1 (Readaptación)';
-  if (bestKg >= 40) {
-    pullTarget = 60;
-    pullPhase = 'Fase 2 (Normalización)';
-  }
-  if (bestKg >= 60) {
-    pullTarget = 80;
-    pullPhase = 'Fase 3 (El Prime)';
+  let pullTarget = targetCtx.isTestMode ? 40 : 60;
+  let pullPhase = targetCtx.isTestMode
+    ? 'Fase 1 (Readaptación)'
+    : 'Fase 1.5 (Base 45 kg ➔ Meta 60-70 kg)';
+  if (targetCtx.isTestMode) {
+    if (bestKg >= 40) {
+      pullTarget = 60;
+      pullPhase = 'Fase 2 (Normalización)';
+    }
+    if (bestKg >= 60) {
+      pullTarget = 80;
+      pullPhase = 'Fase 3 (El Prime)';
+    }
+  } else {
+    if (bestKg >= 60) {
+      pullTarget = 85;
+      pullPhase = 'Fase 2 (Rumbo al Prime: 85-100 kg)';
+    }
   }
 
   const runPercent = Math.min((bestKm / runTarget) * 100, 100).toFixed(1);
@@ -293,6 +354,11 @@ export default function App() {
               {`${pullPercent}%`}
             </div>
           </div>
+
+          <ExerciseGoalsSection
+            exercises={data.exercises}
+            onUpdateExercise={handleUpdateExercise}
+          />
         </>
       )}
 
